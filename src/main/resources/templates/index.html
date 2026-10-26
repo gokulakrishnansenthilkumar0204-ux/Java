@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Student Issue Management &amp; Prioritization System</title>
+    <meta name="description" content="College Student Issue Management and Prioritization System. Report campus issues, upvote critical concerns, and confirm resolutions.">
+    <link rel="stylesheet" th:href="@{/css/style.css}" href="/css/style.css">
+</head>
+<body>
+
+    <!-- ===================================================================
+         Sticky Navigation Header
+         =================================================================== -->
+    <header class="navbar">
+        <div class="container nav-wrapper">
+            <a href="/" class="brand-logo">
+                <div class="brand-icon">🎓</div>
+                <div class="brand-text">
+                    <h1>CampusVoice</h1>
+                    <p>Student Issue Management &amp; Prioritization</p>
+                </div>
+            </a>
+
+            <div class="nav-actions">
+                <!-- Browser UUID Identifier Pill (Requirement 7 & 8) -->
+                <div class="device-badge" title="Unique browser identifier stored in localStorage">
+                    <span class="pulse-dot"></span>
+                    <span>Device:</span>
+                    <strong id="current-device-id">loading...</strong>
+                    <button id="copy-device-btn" class="btn btn-secondary btn-sm" title="Copy Browser UUID">📋</button>
+                    <button id="simulate-device-btn" class="btn btn-secondary btn-sm" title="Generate a new UUID to test duplicate vote rejection and multiple resolution confirmations">+ New Device</button>
+                </div>
+
+                <button id="open-report-modal-btn" class="btn btn-primary">
+                    <span>+</span> Report Issue
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- ===================================================================
+         Main Page Content
+         =================================================================== -->
+    <main class="container">
+
+        <!-- Flash messages (used by the no-JavaScript form fallback) -->
+        <div th:if="${successMessage}" class="flash-message flash-success" role="status" th:text="${successMessage}">Success</div>
+        <div th:if="${errorMessage}" class="flash-message flash-error" role="alert" th:text="${errorMessage}">Error</div>
+        
+        <!-- Hero Section & Live Stats -->
+        <section class="hero">
+            <div class="hero-badge">📢 Student-Powered Governance</div>
+            <h2 class="hero-title">Prioritizing Campus Issues Together</h2>
+            <p class="hero-subtitle">
+                Raise concerns, upvote common problems, and confirm resolutions. Issues are automatically prioritized based on student community votes.
+            </p>
+
+            <!-- Live Dashboard Statistics -->
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-icon blue">📋</div>
+                    <div class="stat-info">
+                        <h3 id="stat-total" th:text="${stats != null ? stats.totalIssues : 0}">0</h3>
+                        <p>Total Issues</p>
+                    </div>
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-icon amber">⏳</div>
+                    <div class="stat-info">
+                        <h3 id="stat-open" th:text="${stats != null ? stats.openIssues : 0}">0</h3>
+                        <p>Open Issues</p>
+                    </div>
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-icon green">✅</div>
+                    <div class="stat-info">
+                        <h3 id="stat-resolved" th:text="${stats != null ? stats.resolvedIssues : 0}">0</h3>
+                        <p>Resolved Issues</p>
+                    </div>
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-icon purple">🔥</div>
+                    <div class="stat-info">
+                        <h3 id="stat-votes" th:text="${stats != null ? stats.totalVotes : 0}">0</h3>
+                        <p>Total Votes Cast</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Controls: Search, Filters & Sorting -->
+        <section class="controls-panel">
+            <div class="controls-top">
+                <!-- Search Input (Requirement 3: Search title, description, category, location) -->
+                <div class="search-box">
+                    <div class="search-input-wrapper">
+                        <span class="search-icon">🔍</span>
+                        <input type="text" id="search-input" class="search-input" 
+                               placeholder="Search issues by title, description, category, or location..." 
+                               th:value="${search}">
+                        <button id="clear-search-btn" class="clear-search-btn" title="Clear search" type="button">✕</button>
+                    </div>
+                    <button id="search-btn" class="btn btn-primary search-btn" type="button" title="Search issues">Search</button>
+                </div>
+
+                <!-- Sort Toggle (Requirement 5: Sort by most votes or newest) -->
+                <div class="sort-group">
+                    <span class="sort-label">Sort By:</span>
+                    <div class="sort-pills">
+                        <button class="sort-btn active" data-sort="votes" title="Sort by most community votes" type="button">
+                            🔥 Most Votes
+                        </button>
+                        <button class="sort-btn" data-sort="newest" title="Sort by most recently reported" type="button">
+                            🕒 Newest
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Category & Status Filters -->
+            <div class="controls-filters">
+                <div class="filter-pills" id="category-filter-group">
+                    <span style="font-size: 0.8rem; color: var(--text-muted); align-self: center; margin-right: 0.25rem;">Category:</span>
+                    <button class="filter-pill active" data-category="ALL" type="button">All Categories</button>
+                    <button th:each="cat : ${categories}" 
+                            class="filter-pill" 
+                            th:data-category="${cat}" 
+                            th:text="${cat}"
+                            type="button">Academic</button>
+                </div>
+
+                <div class="status-filter-group">
+                    <span style="font-size: 0.8rem; color: var(--text-muted); margin-right: 0.25rem;">Status:</span>
+                    <div class="filter-pills">
+                        <button class="filter-pill status-pill active" data-status="ALL" type="button">All</button>
+                        <button class="filter-pill status-pill" data-status="OPEN" type="button">Open</button>
+                        <button class="filter-pill status-pill" data-status="RESOLVED" type="button">Resolved</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- View Issues Section Header -->
+        <div class="section-header-bar" id="view-issues-header">
+            <div class="section-title-wrap">
+                <h2 class="section-title" id="view-issues-title">View Issues &amp; Campus Problems</h2>
+                <span class="section-subtitle" id="issues-count-badge">Loading issues...</span>
+            </div>
+        </div>
+
+        <!-- Issues Grid Container -->
+        <section class="issues-grid" id="issues-container" aria-label="Campus Issues List">
+            <!-- Server-Side Rendered Cards (Replaced/Updated dynamically by JavaScript) -->
+            <div th:each="issue : ${issues}" 
+                 class="issue-card" 
+                 th:classappend="'priority-' + ${#strings.toLowerCase(issue.priority != null ? issue.priority : 'low')}"
+                 th:id="'issue-card-' + ${issue.id}">
+                 
+                <div class="card-content">
+                    <div class="card-header">
+                        <div class="badge-group">
+                            <span class="badge" 
+                                  th:classappend="'badge-' + ${#strings.toLowerCase(issue.priority != null ? issue.priority : 'low')}"
+                                  th:text="${issue.priority != null ? issue.priority : 'LOW'}">
+                                LOW
+                            </span>
+                            <span class="badge" 
+                                  th:classappend="${#strings.equalsIgnoreCase(issue.status, 'RESOLVED')} ? 'badge-resolved' : 'badge-open'"
+                                  th:text="${#strings.equalsIgnoreCase(issue.status, 'RESOLVED')} ? 'Resolved ✓' : 'Open'">
+                                Open
+                            </span>
+                        </div>
+                        <span class="card-time" th:text="${#temporals.format(issue.createdAt, 'dd MMM yyyy')}">Date</span>
+                    </div>
+
+                    <h3 class="issue-title" th:text="${issue.title}">Issue Title</h3>
+                    <p class="issue-desc" th:text="${issue.description}">Issue Description</p>
+
+                    <div class="meta-row">
+                        <div class="meta-item">
+                            <span>📁 <strong th:text="${issue.category}">Category</strong></span>
+                        </div>
+                        <div class="meta-item">
+                            <span>📍 <strong th:text="${issue.location}">Location</strong></span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card-actions">
+                    <div class="action-row">
+                        <!-- Upvote Button -->
+                        <button class="vote-btn" 
+                                th:classappend="${issue.hasVoted} ? 'voted' : ''"
+                                th:id="'vote-btn-' + ${issue.id}"
+                                th:onclick="'window.StudentApp.vote(' + ${issue.id} + ')'"
+                                th:disabled="${issue.hasVoted}">
+                            <span class="vote-icon" th:text="${issue.hasVoted} ? '✓' : '▲'">▲</span>
+                            <span class="vote-label" th:text="${issue.hasVoted} ? 'Voted' : 'Upvote'">Upvote</span>
+                            <span class="vote-count" th:id="'vote-count-' + ${issue.id}" th:text="'(' + ${issue.voteCount != null ? issue.voteCount : 0} + ')'">(0)</span>
+                        </button>
+
+                        <span class="priority-label" style="font-size: 0.78rem; color: var(--text-muted);">
+                            Priority: <strong style="color: var(--text-primary);" th:text="${issue.priority != null ? issue.priority : 'LOW'}">LOW</strong>
+                        </span>
+                    </div>
+
+                    <!-- Resolution Confirmation Section (5 confirmations -> RESOLVED) -->
+                    <div class="resolution-section">
+                        <div class="resolution-header">
+                            <span>Resolution Progress</span>
+                            <strong th:id="'confirmation-ratio-' + ${issue.id}" 
+                                    th:text="${(issue.confirmationCount != null ? issue.confirmationCount : 0) + '/' + confirmationsRequired + ' Confirmations'}">
+                                0/5 Confirmations
+                            </strong>
+                        </div>
+                        <div class="progress-track">
+                            <div class="progress-fill" 
+                                 th:id="'progress-fill-' + ${issue.id}" 
+                                 th:style="'width: ' + ${((issue.confirmationCount != null ? issue.confirmationCount : 0) * 100) / confirmationsRequired} + '%;'">
+                            </div>
+                        </div>
+
+                        <button th:if="${#strings.equalsIgnoreCase(issue.status, 'RESOLVED')}" 
+                                class="confirm-btn resolved" disabled>
+                            ✓ Issue Fully Resolved
+                        </button>
+                        <button th:unless="${#strings.equalsIgnoreCase(issue.status, 'RESOLVED')}"
+                                class="confirm-btn" 
+                                th:classappend="${issue.hasConfirmed} ? 'confirmed' : ''"
+                                th:id="'confirm-btn-' + ${issue.id}"
+                                th:onclick="'window.StudentApp.confirmResolution(' + ${issue.id} + ')'"
+                                th:disabled="${issue.hasConfirmed}">
+                            <span th:text="${issue.hasConfirmed} ? '✓ Confirmed by you' : 'Confirm Resolution'">Confirm Resolution</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Fallback Empty State -->
+            <div th:if="${issues == null || #lists.isEmpty(issues)}" class="empty-state">
+                <div class="empty-icon">🔍</div>
+                <h3>No issues reported yet</h3>
+                <p>Be the first student to report a campus problem or infrastructure concern.</p>
+                <button class="btn btn-primary" onclick="window.StudentApp.openModal()">
+                    + Report First Issue
+                </button>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- ===================================================================
+         Modal: Report New Issue (Requirement 1)
+         =================================================================== -->
+    <div id="report-issue-modal" class="modal-backdrop">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h2>Report Campus Issue</h2>
+                <button id="close-report-modal-btn" class="close-btn" title="Close">✕</button>
+            </div>
+
+            <form id="report-issue-form" th:action="@{/issues/report}" method="post">
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label for="issue-title" class="form-label">Issue Title *</label>
+                        <input type="text" id="issue-title" name="title" class="form-input" 
+                               placeholder="e.g. Wi-Fi down in Central Library 2nd Floor" required maxlength="255">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="issue-category" class="form-label">Category *</label>
+                        <select id="issue-category" name="category" class="form-select" required>
+                            <option value="" disabled selected>Select category...</option>
+                            <option th:each="cat : ${categories}" th:value="${cat}" th:text="${cat}">Academic</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="issue-location" class="form-label">Location / Building / Room *</label>
+                        <input type="text" id="issue-location" name="location" class="form-input" 
+                               placeholder="e.g. Science Block, Room 204 or Boys Hostel 2" required maxlength="100">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="issue-description" class="form-label">Detailed Description *</label>
+                        <textarea id="issue-description" name="description" class="form-textarea" 
+                                  placeholder="Describe the issue clearly, when it started, and its impact on students..." required></textarea>
+                    </div>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" id="cancel-report-btn" class="btn btn-secondary">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Submit Issue</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Floating Toast Notification Stack -->
+    <div id="toast-container" class="toast-container"></div>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <p><strong>Student Issue Management &amp; Prioritization System</strong> &bull; College Capstone Project</p>
+            <p style="margin-top: 0.25rem; font-size: 0.75rem; color: var(--text-muted);">
+                Powered by Spring Boot 3 &bull; Spring Data JPA &bull; PostgreSQL on Supabase &bull; Thymeleaf &bull; Vanilla JS
+            </p>
+        </div>
+    </footer>
+
+    <!-- Client-Side JavaScript -->
+    <script th:src="@{/js/app.js}" src="/js/app.js"></script>
+</body>
+</html>

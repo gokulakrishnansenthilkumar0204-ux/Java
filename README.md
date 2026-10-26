@@ -340,3 +340,4 @@ Run the test suite:
 ```
 
 All unit, integration, and MockMvc tests run against an in-memory database with PostgreSQL compatibility mode, ensuring continuous integration and test verification without exposing database secrets.
+# Java
